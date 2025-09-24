@@ -20,14 +20,58 @@
   <title>Malaysia Tax Calculator - NikiBhavi Vlog</title>
   <link rel="manifest" href="manifest.json">
 
+  <style>
+    /* Simple loader styling */
+    #loading {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      color: #333;
+    }
+
+    #loading h2 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    #loading p {
+      font-size: 16px;
+      color: #666;
+    }
+
+    .spinner {
+      margin-top: 20px;
+      width: 40px;
+      height: 40px;
+      border: 5px solid #ddd;
+      border-top: 5px solid #ff0000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
   <script>
     // The value below is injected by flutter build, do not touch.
     const serviceWorkerVersion = "3770611445";
   </script>
-  <!-- Flutter initialization JS -->
   <script src="flutter.js" defer></script>
 </head>
 <body>
+  <!-- Loading Screen -->
+  <div id="loading">
+    <h2>Loading Malaysia Tax Calculator...</h2>
+    <p>📊 This may take a few seconds depending on your connection.</p>
+    <div class="spinner"></div>
+  </div>
+
   <script>
     window.addEventListener('load', function(ev) {
       _flutter.loader.loadEntrypoint({
@@ -36,6 +80,9 @@
         },
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine().then(function(appRunner) {
+            // Hide loader
+            document.getElementById('loading').style.display = 'none';
+            // Run Flutter App
             appRunner.runApp();
           });
         }
