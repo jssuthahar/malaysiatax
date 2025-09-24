@@ -50,6 +50,32 @@ class _CalculatePageState extends State<CalculatePage> {
     return tax;
   }
 
+  /// Returns the month and year when user becomes resident, or null if not in selected year.
+  Map<String, dynamic>? _residentMonthYear(DateTime arrival, int selectedYear) {
+    DateTime start = arrival.isAfter(DateTime(selectedYear, 1, 1))
+        ? arrival
+        : DateTime(selectedYear, 1, 1);
+    int days = 0;
+    for (int m = start.month; m <= 12; m++) {
+      DateTime monthStart = DateTime(selectedYear, m, 1);
+      DateTime monthEnd = DateTime(selectedYear, m + 1, 0);
+      int daysInMonth = monthEnd.difference(monthStart).inDays + 1;
+      if (m == start.month) {
+        days += monthEnd.difference(start).inDays + 1;
+      } else {
+        days += daysInMonth;
+      }
+      if (days >= 182) {
+        return {
+          "year": selectedYear,
+          "month": m,
+          "monthLabel": _monthLabel(DateTime(selectedYear, m, 1))
+        };
+      }
+    }
+    return null;
+  }
+
   // Resident start date = arrivalDate + 182 days (i.e. after completing 182 days)
   DateTime? _residentStartDate(DateTime arrival) {
     return arrival.add(const Duration(days: 182));
@@ -57,7 +83,6 @@ class _CalculatePageState extends State<CalculatePage> {
 
   // Build user-friendly explanation / timeline and compute monthly breakdown
   void _calculate() {
-    // reset
     _breakdown = [];
     _totalSalary = 0;
     _totalTax = 0;
@@ -70,169 +95,152 @@ class _CalculatePageState extends State<CalculatePage> {
       return;
     }
 
-    // Build months for the selected year
     List<DateTime> months =
         List.generate(12, (i) => DateTime(_selectedYear, i + 1, 1));
 
-    DateTime? residentFrom;
-    bool fullYearNonResident = false;
+    bool isLocal = !_isForeigner;
+    int daysSoFar = 0;
+    bool crossed182 = false;
+    int residentMonth = -1;
 
-    if (_isForeigner) {
-      if (_arrivalDate == null) {
-        // require arrival date
-        setState(() {});
-        return;
-      }
+    if (_isForeigner &&
+        _arrivalDate != null &&
+        _arrivalDate!.year <= _selectedYear) {
+      DateTime start = _arrivalDate!.isAfter(DateTime(_selectedYear, 1, 1))
+          ? _arrivalDate!
+          : DateTime(_selectedYear, 1, 1);
 
-      // If arrival is after the selected year end or before selected year start handle properly
-      // For residency determination within selected year, compute days remaining in that year from arrival
-      final DateTime endOfSelectedYear = DateTime(_arrivalDate!.year, 12, 31);
-      final int daysRemainingThisYear =
-          endOfSelectedYear.difference(_arrivalDate!).inDays + 1;
+      for (var m in months) {
+        Map<String, dynamic> row = {
+          "monthLabel": _monthLabel(m),
+          "salary": 0.0,
+          "tax": 0.0,
+          "rateLabel": "—",
+          "status": "Before Arrival / N/A"
+        };
 
-      // residentFrom = arrival + 182 days
-      residentFrom = _residentStartDate(_arrivalDate!);
-
-      // If arrival in selected year BUT daysRemainingThisYear < 183 => cannot become resident in this year
-      if (_arrivalDate!.year == _selectedYear && daysRemainingThisYear < 183) {
-        fullYearNonResident = true;
-        _residencyNote =
-            "You arrived on ${_formatDate(_arrivalDate!)} — not enough days left in $_selectedYear to meet 183-day rule. You will be Non-Resident for $_selectedYear (30% flat).";
-      }
-
-      // If arrival after selectedYear (arriving next year), treat selected year as before arrival (no salary)
-      // If arrival earlier than selectedYear, residentFrom may be before selectedYear -> they are resident for selectedYear
-    } else {
-      _residencyNote = "Local Malaysian — progressive resident tax applies for the year.";
-    }
-
-    // precompute annual resident tax when resident months exist (apply same monthly split)
-    double annualResidentTax = _calculateResidentAnnualTax(monthlySalary * 12);
-    double monthlyResidentTax = annualResidentTax / 12;
-
-    for (var m in months) {
-      Map<String, dynamic> row = {
-        "monthLabel": _monthLabel(m),
-        "salary": 0.0,
-        "tax": 0.0,
-        "rateLabel": "—",
-        "status": "Before Arrival / N/A"
-      };
-
-      // If foreigner and arrival is after this month => before arrival
-      if (_isForeigner) {
-        if (_arrivalDate != null && m.isBefore(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1))) {
-          // before arrival => no salary
+        if (m.isBefore(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1))) {
           row["status"] = "Before Arrival";
-          row["salary"] = 0.0;
-        } else if (fullYearNonResident &&
-            _arrivalDate != null &&
-            _arrivalDate!.year == _selectedYear &&
-            m.isAtSameMomentAs(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1)) ||
-            (fullYearNonResident && _arrivalDate != null && m.isAfter(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1)))) {
-          // if arrival in selected year but fullYearNonResident, then months from arrival onwards taxed at 30%
-          if (_arrivalDate != null && (m.isBefore(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1)))) {
-            row["salary"] = 0.0;
-            row["status"] = "Before Arrival";
-          } else {
-            row["salary"] = monthlySalary;
-            row["tax"] = monthlySalary * TaxConfig.nonResidentRate;
-            row["rateLabel"] = "${(TaxConfig.nonResidentRate * 100).toStringAsFixed(0)}% (Non-resident)";
-            row["status"] = "Non-resident (30%)";
-          }
         } else {
-          // If residentFrom is within or before selected year and this month is on/after residentFrom => resident tax
-          if (_arrivalDate != null && residentFrom != null && (m.isAtSameMomentAs(DateTime(residentFrom.year, residentFrom.month, 1)) || m.isAfter(DateTime(residentFrom.year, residentFrom.month, 1)))) {
-            // resident month
-            row["salary"] = monthlySalary;
+          // Calculate days in this month
+          DateTime monthStart = m;
+          DateTime monthEnd = DateTime(m.year, m.month + 1, 0);
+          int daysInMonth = monthEnd.difference(monthStart).inDays + 1;
+
+          // For arrival month, only count days from arrival
+          if (m.month == _arrivalDate!.month && m.year == _arrivalDate!.year) {
+            daysInMonth = monthEnd.difference(_arrivalDate!).inDays + 1;
+          }
+
+          daysSoFar += daysInMonth;
+
+          if (!crossed182 && daysSoFar >= 182) {
+            crossed182 = true;
+            residentMonth = m.month;
+          }
+
+          row["salary"] = monthlySalary;
+          if (!crossed182) {
+            row["tax"] = monthlySalary * TaxConfig.nonResidentRate;
+            row["rateLabel"] =
+                "${(TaxConfig.nonResidentRate * 100).toStringAsFixed(0)}% (Non-resident)";
+            row["status"] = "Non-resident (30%)";
+          } else {
+            double annualResidentTax =
+                _calculateResidentAnnualTax(monthlySalary * 12);
+            double monthlyResidentTax = annualResidentTax / 12;
             row["tax"] = monthlyResidentTax;
             row["rateLabel"] = "Progressive (resident)";
             row["status"] = "Resident (progressive)";
-          } else {
-            // If arrival in this year and month >= arrival month but before residentFrom => non-resident 30%
-            if (_arrivalDate != null && m.isAtSameMomentAs(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1)) || (_arrivalDate != null && (m.isAfter(DateTime(_arrivalDate!.year, _arrivalDate!.month, 1)) && (residentFrom == null || m.isBefore(DateTime(residentFrom.year, residentFrom.month, 1)))))) {
-              row["salary"] = monthlySalary;
-              row["tax"] = monthlySalary * TaxConfig.nonResidentRate;
-              row["rateLabel"] = "${(TaxConfig.nonResidentRate * 100).toStringAsFixed(0)}% (Non-resident)";
-              row["status"] = "Non-resident (30%)";
-            } else {
-              // arrival not in this year -> if arrival before this year then they might be resident
-              // check if arrival_date is before this year and residentFrom <= this month -> resident
-              if (_arrivalDate != null && _arrivalDate!.isBefore(DateTime(_selectedYear, 1, 1))) {
-                // arrival earlier than this year: check if residentFrom <= this month
-                DateTime rFrom = residentFrom ?? _arrivalDate!;
-                if (rFrom.isBefore(m) || rFrom.isAtSameMomentAs(m)) {
-                  row["salary"] = monthlySalary;
-                  row["tax"] = monthlyResidentTax;
-                  row["rateLabel"] = "Progressive (resident)";
-                  row["status"] = "Resident (progressive)";
-                } else {
-                  // still non-resident
-                  row["salary"] = monthlySalary;
-                  row["tax"] = monthlySalary * TaxConfig.nonResidentRate;
-                  row["rateLabel"] = "${(TaxConfig.nonResidentRate * 100).toStringAsFixed(0)}% (Non-resident)";
-                  row["status"] = "Non-resident (30%)";
-                }
-              } else {
-                // default: no salary (if arrival in future) or apply resident if local
-                if (!_isForeigner) {
-                  row["salary"] = monthlySalary;
-                  row["tax"] = monthlyResidentTax;
-                  row["rateLabel"] = "Progressive (resident)";
-                  row["status"] = "Resident (progressive)";
-                } else {
-                  // case arrival in future of selected year -> before arrival handled above; else fallback:
-                  row["salary"] = 0.0;
-                  row["tax"] = 0.0;
-                  row["rateLabel"] = "—";
-                  row["status"] = "Before Arrival";
-                }
-              }
-            }
           }
         }
+
+        _breakdown.add(row);
+        _totalSalary += (row["salary"] as double);
+        _totalTax += (row["tax"] as double);
+        _netIncome += (row["salary"] as double) - (row["tax"] as double);
+      }
+
+      if (residentMonth > 0) {
+        _residencyNote =
+            "You arrived on ${_formatDate(_arrivalDate!)} — you complete 182 days in ${_monthLabel(DateTime(_selectedYear, residentMonth, 1))} ${_selectedYear} and become Resident for the rest of the year.";
       } else {
-        // Local: resident all year
-        row["salary"] = monthlySalary;
+        // Calculate when 182 days will be completed in the next year
+        final nextYear = _selectedYear + 1;
+        DateTime nextYearStart = DateTime(nextYear, 1, 1);
+        DateTime arrival = _arrivalDate!;
+        // Days left to reach 182 after current year
+        int daysLeft = 182 - daysSoFar;
+        DateTime residentDate = arrival.add(Duration(days: 182));
+        int residentMonthNextYear =
+            residentDate.year == nextYear ? residentDate.month : -1;
+        String nextResidentMonthLabel = residentMonthNextYear > 0
+            ? _monthLabel(DateTime(nextYear, residentMonthNextYear, 1))
+            : "N/A";
+        _residencyNote =
+            "You arrived on ${_formatDate(_arrivalDate!)} — not enough days in $_selectedYear to meet 182-day rule. You will be Non-Resident for $_selectedYear (30% flat). "
+            "You will become Resident in $nextResidentMonthLabel $nextYear if you stay continuously.";
+      }
+    } else {
+      // Local or arrival after selected year
+      for (var m in months) {
+        Map<String, dynamic> row = {
+          "monthLabel": _monthLabel(m),
+          "salary": monthlySalary,
+          "tax": 0.0,
+          "rateLabel": "Progressive (resident)",
+          "status": "Resident (progressive)"
+        };
+        double annualResidentTax =
+            _calculateResidentAnnualTax(monthlySalary * 12);
+        double monthlyResidentTax = annualResidentTax / 12;
         row["tax"] = monthlyResidentTax;
-        row["rateLabel"] = "Progressive (resident)";
-        row["status"] = "Resident (progressive)";
-      }
 
-      _breakdown.add(row);
-      _totalSalary += (row["salary"] as double);
-      _totalTax += (row["tax"] as double);
-      _netIncome += (row["salary"] as double) - (row["tax"] as double);
+        _breakdown.add(row);
+        _totalSalary += (row["salary"] as double);
+        _totalTax += (row["tax"] as double);
+        _netIncome += (row["salary"] as double) - (row["tax"] as double);
+      }
+      _residencyNote = isLocal
+          ? "Local Malaysian — progressive resident tax applies for the year."
+          : "You arrive after $_selectedYear. No salary/tax for this year.";
     }
 
-    // Build clear residency note
-    if (_isForeigner && _arrivalDate != null) {
-      final DateTime residentFrom = _residentStartDate(_arrivalDate!)!;
-      if (residentFrom.year > _selectedYear) {
-        _residencyNote =
-            "You arrived on ${_formatDate(_arrivalDate!)} — you will be Non-Resident for $_selectedYear. If you stay through ${_monthLabel(residentFrom)} you may become Resident in ${residentFrom.year}.";
-      } else {
-        _residencyNote =
-            "You arrived on ${_formatDate(_arrivalDate!)} — you become Resident from ${_monthLabel(residentFrom)} ${residentFrom.year}.";
-      }
-    }
-
-    // done
     setState(() {});
   }
 
   String _monthLabel(DateTime d) {
     final names = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
     ];
     return "${names[d.month - 1]} ${d.year}";
   }
 
   String _formatDate(DateTime d) {
     final names = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
     ];
     return "${d.day} ${names[d.month - 1]} ${d.year}";
   }
@@ -243,32 +251,81 @@ class _CalculatePageState extends State<CalculatePage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("Summary for $_selectedYear",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text("Total Salary:", style: TextStyle(fontWeight: FontWeight.w600)),
-            Text("MYR ${_totalSalary.toStringAsFixed(2)}"),
-          ]),
-          const SizedBox(height: 6),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text("Total Tax:", style: TextStyle(fontWeight: FontWeight.w600)),
-            Text("MYR ${_totalTax.toStringAsFixed(2)}",
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 6),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text("Net Income:", style: TextStyle(fontWeight: FontWeight.w600)),
-            Text("MYR ${_netIncome.toStringAsFixed(2)}",
-                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 10),
-          if (_residencyNote.isNotEmpty)
-            Text(_residencyNote, style: const TextStyle(color: Colors.deepPurple)),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Summary for $_selectedYear",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text("Total Salary:",
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text("MYR ${_totalSalary.toStringAsFixed(2)}"),
+            ]),
+            const SizedBox(height: 6),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text("Total Tax:",
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text("MYR ${_totalTax.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold)),
+            ]),
+            const SizedBox(height: 6),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text("Net Income:",
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text("MYR ${_netIncome.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                      color: Colors.green, fontWeight: FontWeight.bold)),
+            ]),
+            const SizedBox(height: 10),
+            if (_residencyNote.isNotEmpty) _buildResidencyNote(),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildResidencyNote() {
+    if (_isForeigner && _arrivalDate != null) {
+      final residentMonth =
+          _breakdown.indexWhere((r) => r["status"] == "Resident (progressive)");
+      if (residentMonth > 0) {
+        final monthLabel =
+            _monthLabel(DateTime(_selectedYear, residentMonth + 1, 1));
+        return RichText(
+          text: TextSpan(
+            style: const TextStyle(color: Colors.deepPurple, fontSize: 14),
+            children: [
+              TextSpan(
+                  text:
+                      "You arrived on ${_formatDate(_arrivalDate!)} — you complete 182 days in "),
+              TextSpan(
+                text: "$monthLabel $_selectedYear",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextSpan(text: " and become "),
+              TextSpan(
+                text: "Resident",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextSpan(text: " for the rest of the year."),
+            ],
+          ),
+        );
+      } else {
+        return Text(
+          "You arrived on ${_formatDate(_arrivalDate!)} — not enough days in $_selectedYear to meet 182-day rule. You will be Non-Resident for $_selectedYear (30% flat).",
+          style: const TextStyle(color: Colors.deepPurple),
+        );
+      }
+    } else {
+      return Text(
+        _residencyNote,
+        style: const TextStyle(color: Colors.deepPurple),
+      );
+    }
   }
 
   @override
@@ -295,9 +352,12 @@ class _CalculatePageState extends State<CalculatePage> {
 
           // Year selector
           Row(children: [
-            const Text("2) Select tax year", style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text("2) Select tax year",
+                style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            Tooltip(message: "Choose the tax year you want to estimate", child: const Icon(Icons.info, size: 16)),
+            Tooltip(
+                message: "Choose the tax year you want to estimate",
+                child: const Icon(Icons.info, size: 16)),
           ]),
           const SizedBox(height: 6),
           DropdownButton<int>(
@@ -311,7 +371,8 @@ class _CalculatePageState extends State<CalculatePage> {
 
           // Foreigner switch + tooltip
           Row(children: [
-            const Text("3) Are you a foreigner? ", style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text("3) Are you a foreigner? ",
+                style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(width: 6),
             Tooltip(
               message:
@@ -319,27 +380,32 @@ class _CalculatePageState extends State<CalculatePage> {
               child: Icon(Icons.info_outline, size: 18),
             ),
             const Spacer(),
-            Switch(value: _isForeigner, onChanged: (v) => setState(() {
-              _isForeigner = v;
-              if (!_isForeigner) _arrivalDate = null;
-            })),
+            Switch(
+                value: _isForeigner,
+                onChanged: (v) => setState(() {
+                      _isForeigner = v;
+                      if (!_isForeigner) _arrivalDate = null;
+                    })),
           ]),
           const SizedBox(height: 6),
 
           // Arrival date picker (only for foreigners)
           if (_isForeigner)
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("4) Select arrival date to Malaysia", style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text("4) Select arrival date to Malaysia",
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               ElevatedButton.icon(
                 icon: const Icon(Icons.calendar_today),
-                label: Text(_arrivalDate == null ? "Pick arrival date" : _formatDate(_arrivalDate!)),
+                label: Text(_arrivalDate == null
+                    ? "Pick arrival date"
+                    : _formatDate(_arrivalDate!)),
                 onPressed: () async {
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime(_selectedYear, 1, 1),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2030),
+                    firstDate: DateTime(_selectedYear, 1, 1),
+                    lastDate: DateTime(_selectedYear, 12, 31),
                   );
                   if (picked != null) setState(() => _arrivalDate = picked);
                 },
@@ -390,13 +456,18 @@ class _CalculatePageState extends State<CalculatePage> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(10),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("Legend", style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  const Text("30% (Non-resident): Flat rate for non-resident foreigner months."),
-                  const SizedBox(height: 4),
-                  const Text("Progressive (Resident): Monthly share of resident tax computed from progressive annual slabs."),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Legend",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      const Text(
+                          "30% (Non-resident): Flat rate for non-resident foreigner months."),
+                      const SizedBox(height: 4),
+                      const Text(
+                          "Progressive (Resident): Monthly share of resident tax computed from progressive annual slabs."),
+                    ]),
               ),
             ),
 
@@ -414,17 +485,38 @@ class _CalculatePageState extends State<CalculatePage> {
               },
               children: [
                 const TableRow(children: [
-                  Padding(padding: EdgeInsets.all(8), child: Text("Month", style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text("Salary (MYR)", style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text("Tax (MYR)", style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text("Rate", style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text("Month",
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text("Salary (MYR)",
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text("Tax (MYR)",
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text("Rate",
+                          style: TextStyle(fontWeight: FontWeight.bold))),
                 ]),
                 ..._breakdown.map((r) => TableRow(children: [
-                  Padding(padding: const EdgeInsets.all(8), child: Text(r["monthLabel"])),
-                  Padding(padding: const EdgeInsets.all(8), child: Text((r["salary"] as double).toStringAsFixed(2))),
-                  Padding(padding: const EdgeInsets.all(8), child: Text((r["tax"] as double).toStringAsFixed(2))),
-                  Padding(padding: const EdgeInsets.all(8), child: Text(r["rateLabel"])),
-                ])),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(r["monthLabel"])),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child:
+                              Text((r["salary"] as double).toStringAsFixed(2))),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text((r["tax"] as double).toStringAsFixed(2))),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(r["rateLabel"])),
+                    ])),
               ],
             ),
 
@@ -437,10 +529,12 @@ class _CalculatePageState extends State<CalculatePage> {
           ),
           const SizedBox(height: 8),
           InkWell(
-            onTap: () => launchUrl(Uri.parse("https://www.youtube.com/@NikiBhavi")),
+            onTap: () =>
+                launchUrl(Uri.parse("https://www.youtube.com/@NikiBhavi")),
             child: const Text(
               "Learn more on NikiBhavi Vlog — Subscribe!",
-              style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+              style: TextStyle(
+                  color: Colors.blue, decoration: TextDecoration.underline),
             ),
           ),
         ]),
