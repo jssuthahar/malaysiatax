@@ -1,74 +1,86 @@
+# 🇲🇾 Malaysia Tax Calculator (Flutter Web)
 
+**Fast, Accurate, and Simple Malaysia Income Tax Estimator for Locals & Foreigners**
 
-# Malaysia Tax Calculator (Flutter Web)
+This open-source **Flutter Web Malaysia Tax Calculator** helps you instantly estimate your **monthly and yearly Malaysian income tax**, whether you are a **Malaysian resident** or **foreigner** working in Malaysia.
 
-A **user-friendly Flutter web app** to estimate Malaysia income tax for residents and foreigners. The app allows users to input their salary, arrival date (for foreigners), and calculates monthly and yearly taxes. It also provides a preview of Malaysian tax brackets and non-resident flat tax rates.
+It supports progressive resident tax brackets, non-resident flat tax rules, and provides a clean UI with monthly breakdowns and net salary calculations.
 
-
-
----
-🌟 Attention Everyone! 🌟
-
-Many of our subscribers struggle to calculate tax in Malaysia, so I’ve created a comprehensive website to make it easy for anyone to calculate and understand Malaysian taxes quickly and accurately:
-https://jssuthahar.github.io/malaysiatax/
-
-If you’re planning to travel to Malaysia or know someone who is, this will save a lot of time and confusion. Please share it with your friends! 🇲🇾
-
-And a big thank you for your continued support of NikiBhavi Vlog: https://www.youtube.com/@NikiBhavi
- 🙏
-
-## Features
-
-1. **Income Tax Calculation**
-
-   * For **Malaysian locals** (resident progressive tax rates).
-   * For **foreigners** (non-resident flat rate for initial months, then resident progressive if staying >182 days).
-   * Calculates **monthly tax, total tax, and net income**.
-
-2. **Interactive UI**
-
-   * Home page with **YouTube promotion banner** for NikiBhavi channel.
-   * Navigation to **calculator page** for user input and tax computation.
-   * Easy-to-read **monthly breakdown** with percentages.
-
-3. **Tax Rules Preview**
-
-   * Shows **resident brackets** and **non-resident flat rate**.
-   * Hardcoded for instant display (JSON can be used dynamically in the calculator).
-
-4. **User Inputs**
-
-   * Monthly salary in MYR.
-   * Year of calculation.
-   * Foreigner or local selection.
-   * Arrival date for foreigners.
-
-5. **Disclaimer**
-
-   * Reminds users to always refer to **official LHDN (hasil.gov.my)** for the latest tax rules.
-
-6. **YouTube Integration**
-
-   * Button to open NikiBhavi channel for tutorials.
+🔗 **Live App:** [https://jssuthahar.github.io/malaysiatax/](https://jssuthahar.github.io/malaysiatax/)
+📺 **YouTube:** [https://www.youtube.com/@NikiBhavi](https://www.youtube.com/@NikiBhavi)
 
 ---
 
-# Malaysia Tax Calculator
+## 🌟 Why This Tax Calculator?
 
-A simple and easy-to-use tax calculator for Malaysia.  
-This project helps locals and foreigners calculate their **monthly and yearly tax breakdowns** with a clean and responsive interface.  
+Many people—locals, expats, tourists, new workers—struggle to calculate Malaysian tax correctly.
+To make things simple, I created this **free tax calculator website** that helps you:
+
+✔ Understand **Malaysia income tax rules**
+✔ Calculate tax for **locals and foreigners**
+✔ Estimate **take-home salary**
+✔ Learn about **resident vs non-resident** tax
+✔ View Malaysia's latest **tax brackets**
+
+Please share this tool with your friends if they plan to work or move to Malaysia. 🇲🇾
+Your support for **NikiBhavi Vlog** means a lot! 🙏
 
 ---
 
-## 🔥 Features
-- Calculate Malaysian income tax instantly  
-- Supports locals and foreigners  
-- Monthly and yearly tax breakdown  
-- Easy-to-understand results  
+# 🚀 Malaysia Tax Calculator — Key Features
+
+## 1️⃣ **Income Tax Calculation**
+
+Supports the complete Malaysian income tax system:
+
+* **Residents** → Progressive tax brackets
+* **Foreigners** → Non-resident flat rate (first 182 days), then progressive
+* Monthly and annual:
+
+  * Tax payable
+  * Total salary
+  * Net income
+  * Effective tax rate
 
 ---
 
-## 📸 Screenshots
+## 2️⃣ **Interactive UI (Flutter Web)**
+
+* Clean dashboard
+* **YouTube banner** promoting NikiBhavi channel
+* Button navigation to Calculator
+* Color-coded monthly breakdowns
+* Fully responsive design
+
+---
+
+## 3️⃣ **Malaysia Tax Rules Preview**
+
+Includes a simple preview of:
+
+* **Resident tax brackets**
+* **Non-resident tax rate**
+* Easy JSON-based configuration for future updates
+
+---
+
+## 4️⃣ **User Inputs**
+
+* Monthly salary (MYR)
+* Year of calculation
+* Resident/Foreigner selection
+* Arrival date (for foreigners)
+
+---
+
+## 5️⃣ **Important Disclaimer**
+
+This tool provides **estimated tax values**.
+Always verify with the official **LHDN Malaysia** 👉 [https://www.hasil.gov.my](https://www.hasil.gov.my)
+
+---
+
+# 🖥️ Screenshots
 
 <p align="center">
   <img src="https://github.com/jssuthahar/malaysiatax/blob/main/ScreenShort/MalaysiaTax1.png" width="30%" />
@@ -78,88 +90,80 @@ This project helps locals and foreigners calculate their **monthly and yearly ta
 
 ---
 
-## 🚀 Live Website
-👉 [Try it here](https://jssuthahar.github.io/malaysiatax/)
+# 🌐 Live Demo
 
+👉 **Use the Malaysia Tax Calculator**
+[https://jssuthahar.github.io/malaysiatax/](https://jssuthahar.github.io/malaysiatax/)
 
 ---
 
-## 📺 Support My Work
+# 💛 Support My Work
 
 <a href="https://buymeacoffee.com/jssuthahar" target="_blank">
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height:50px;">
 </a>
 
-
-Check out my YouTube channel:  
-[NikiBhavi Vlog](https://www.youtube.com/@NikiBhavi)
-
----
-
-## 📜 License
-This project is licensed under the MIT License.
-
+📺 Watch & Support:
+**NikiBhavi Vlog** – [https://www.youtube.com/@NikiBhavi](https://www.youtube.com/@NikiBhavi)
 
 ---
 
-## Project Structure
+# 📦 Project Structure
 
 ```
 malaysia_tax_calculator/
 │
 ├─ lib/
 │   ├─ main.dart
-│   ├─ home_page.dart         # Home page with YouTube banner & tax preview
-│   ├─ calculator_page.dart   # Tax calculation page
-│   └─ tax_config.dart        # Optional: Load tax brackets & non-resident rate
+│   ├─ home_page.dart         # Home page with YouTube banner & tax overview
+│   ├─ calculator_page.dart   # Tax calculation logic & UI
+│   └─ tax_config.dart        # Load tax brackets & non-resident rate
 │
 ├─ assets/
-│   └─ tax_rules.json         # JSON file for dynamic tax brackets
+│   └─ tax_rules.json         # Editable tax rules for Malaysia
 │
 ├─ pubspec.yaml
 ├─ README.md
 └─ web/
-    └─ index.html             # Flutter web entrypoint
+    └─ index.html             # Flutter Web entry point
 ```
 
 ---
 
-## Setup Instructions
+# 🛠️ Installation & Setup
 
-1. **Clone the repository**
+## 1. Clone this repository
 
 ```bash
 git clone <your-repo-url>
 cd malaysia_tax_calculator
 ```
 
-2. **Install Flutter dependencies**
+## 2. Install dependencies
 
 ```bash
 flutter pub get
 ```
 
-3. **Run Flutter web app**
+## 3. Run the app in browser
 
 ```bash
 flutter run -d chrome
 ```
 
-4. **Build for web (optional)**
+## 4. Build for production
 
 ```bash
 flutter build web
 ```
 
-* The build will be in the `build/web/` folder.
-* Can be hosted on **GitHub Pages** or any static hosting.
+Output will be generated in `build/web/` → ready for **GitHub Pages** hosting.
 
 ---
 
-## Assets
+# 📁 Tax Rules JSON (Editable)
 
-* `assets/tax_rules.json`
-  Sample structure:
+**assets/tax_rules.json**
 
 ```json
 {
@@ -182,44 +186,47 @@ flutter build web
 }
 ```
 
-* Used in **CalculatePage** for dynamic tax computation.
+---
+
+# 📘 How to Use the Calculator
+
+## ▶ On **Home Page**
+
+* View NikiBhavi YouTube banner
+* View Malaysia tax bracket summary
+* Click **Start Calculation**
+
+## ▶ On **Calculator Page**
+
+1. Enter your **monthly salary**
+2. Choose **year**
+3. Select:
+
+   * Local resident
+   * Foreigner
+4. If foreigner → enter **arrival date**
+5. Click **Calculate**
+6. View:
+
+   * Monthly tax
+   * Total tax
+   * Total salary
+   * Net income
+   * Effective tax %
 
 ---
 
-## Usage
+# ℹ️ Important Notes
 
-1. Open the app in the browser.
-
-2. On **HomePage**:
-
-   * See the **YouTube banner** for NikiBhavi.
-   * See **resident tax brackets preview** and **non-resident rate**.
-   * Click **Start Calculation** to navigate to the calculator page.
-
-3. On **CalculatorPage**:
-
-   * Enter your **monthly salary**.
-   * Select **year**.
-   * Choose **foreigner or local**.
-   * For foreigners, select **arrival date**.
-   * Click **Calculate**.
-   * View **monthly breakdown**, **total salary**, **total tax**, and **net income**.
+* Foreigners pay **30% flat** for first **182 days**.
+* After crossing 182 days → switch to **resident tax** (progressive).
+* JSON tax rules allow quick tax updates without app modifications.
+* All results are **estimates only**.
+* Always refer to **LHDN Malaysia** for final confirmation.
 
 ---
 
-## Notes
-
-* Non-resident foreigners are taxed **30% flat for first 180 days**.
-* After 182 days, if still in Malaysia, **progressive resident tax applies**.
-* The calculator uses **dynamic JSON tax rules**, making it easy to update in future.
-* All results are **estimates**; always verify with **LHDN (hasil.gov.my)**.
-
----
-
-## Dependencies
-
-* **Flutter SDK 3.x or higher**
-* **url\_launcher**: for opening YouTube links
+# 📦 Dependencies (pubspec.yaml)
 
 ```yaml
 dependencies:
@@ -230,7 +237,8 @@ dependencies:
 
 ---
 
-## License
+# 📄 License
 
-MIT License © Suthahar Jegatheesan
+MIT License © **Suthahar Jegatheesan**
 
+---
